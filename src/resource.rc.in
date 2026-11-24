@@ -1,0 +1,3 @@
+#include "resource.h"
+IDR_SPLASH_GIF "GIF" "@SPLASH_GIF_PATH@"
+IDR_FORGE_FONT "FONT" "@FORGE_FONT_PATH@"
