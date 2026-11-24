@@ -140,13 +140,13 @@ static void Paint(HWND hwnd) {
     RectF percentRect{};
     graphics.MeasureString(percentage.c_str(), -1, &percentFont, PointF(0, 0), &percentRect);
     graphics.DrawString(percentage.c_str(), -1, &percentFont, PointF(width - 54.0f - percentRect.Width, 417.0f), &percentBrush);
-    DrawRounded(graphics, 54, 448, width - 108, 8, 4, Color(255, 43, 43, 49));
+    DrawRounded(graphics, 54.0f, 448.0f, static_cast<float>(width - 108), 8.0f, 4.0f, Color(255, 43, 43, 49));
     if (g_progress > 0) {
-        DrawRounded(graphics, 54, 448, (width - 108) * (g_progress / 100.0f), 8, 4, Color(255, 237, 77, 42));
-        DrawRounded(graphics, 54, 448, std::max(8.0f, (width - 108) * (g_progress / 100.0f)), 3, 2, Color(150, 255, 174, 113));
+        DrawRounded(graphics, 54.0f, 448.0f, static_cast<float>(width - 108) * (g_progress / 100.0f), 8.0f, 4.0f, Color(255, 237, 77, 42));
+        DrawRounded(graphics, 54.0f, 448.0f, std::max(8.0f, static_cast<float>(width - 108) * (g_progress / 100.0f)), 3.0f, 2.0f, Color(150, 255, 174, 113));
     }
     DrawText(graphics, L"DRAGON ANTI-CHEAT", 54, 477, 9, Color(255, 104, 104, 111), FontStyleBold);
-    DrawText(graphics, L"SECURE INITIALIZATION", width - 190, 477, 9, Color(255, 104, 104, 111));
+    DrawText(graphics, L"SECURE INITIALIZATION", static_cast<float>(width - 190), 477.0f, 9.0f, Color(255, 104, 104, 111));
     const int closeX = width - 42;
     const int closeY = 22;
     Pen closePen(Color(255, 170, 166, 166), 1.6f);
