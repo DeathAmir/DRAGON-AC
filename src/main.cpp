@@ -16,6 +16,7 @@ static ULONG_PTR g_gdiplus = 0;
 static Image* g_splash = nullptr;
 static IStream* g_gifStream = nullptr;
 static PrivateFontCollection g_fonts;
+static std::vector<BYTE> g_fontBytes;
 static FontFamily* g_fontFamilies = nullptr;
 static FontFamily* g_fontFamily = nullptr;
 static int g_frame = 0;
@@ -57,8 +58,8 @@ static void InitializeAssets() {
             } else GlobalFree(memory);
         }
     }
-    auto font = LoadResourceBytes(IDR_FORGE_FONT, L"FONT");
-    if (!font.empty() && g_fonts.AddMemoryFont(font.data(), static_cast<INT>(font.size())) == Ok) {
+    g_fontBytes = LoadResourceBytes(IDR_FORGE_FONT, L"FONT");
+    if (!g_fontBytes.empty() && g_fonts.AddMemoryFont(g_fontBytes.data(), static_cast<INT>(g_fontBytes.size())) == Ok) {
         INT count = 0;
         g_fontFamilies = new FontFamily[1];
         g_fonts.GetFamilies(1, g_fontFamilies, &count);
