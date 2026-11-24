@@ -1,9 +1,7 @@
-#define UNICODE
-#define _UNICODE
 #include <windows.h>
 #include <windowsx.h>
-#include <gdiplus.h>
 #include <objidl.h>
+#include <gdiplus.h>
 #include <algorithm>
 #include <string>
 #include <vector>
