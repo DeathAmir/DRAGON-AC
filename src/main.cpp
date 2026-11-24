@@ -18,6 +18,7 @@ static ULONG_PTR g_gdiplus = 0;
 static Image* g_splash = nullptr;
 static IStream* g_gifStream = nullptr;
 static PrivateFontCollection g_fonts;
+static FontFamily* g_fontFamilies = nullptr;
 static FontFamily* g_fontFamily = nullptr;
 static int g_frame = 0;
 static UINT g_frameCount = 1;
@@ -61,8 +62,10 @@ static void InitializeAssets() {
     auto font = LoadResourceBytes(IDR_FORGE_FONT, L"FONT");
     if (!font.empty() && g_fonts.AddMemoryFont(font.data(), static_cast<INT>(font.size())) == Ok) {
         INT count = 0;
-        g_fonts.GetFamilies(1, &g_fontFamily, &count);
-        if (!count) g_fontFamily = nullptr;
+        g_fontFamilies = new FontFamily[1];
+        g_fonts.GetFamilies(1, g_fontFamilies, &count);
+        if (count) g_fontFamily = &g_fontFamilies[0];
+        else { delete[] g_fontFamilies; g_fontFamilies = nullptr; }
     }
 }
 
@@ -261,7 +264,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     }
     delete g_splash;
     if (g_gifStream) g_gifStream->Release();
-    delete g_fontFamily;
+    delete[] g_fontFamilies;
     GdiplusShutdown(g_gdiplus);
     return static_cast<int>(message.wParam);
 }
