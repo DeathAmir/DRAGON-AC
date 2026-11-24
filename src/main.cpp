@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include "resource.h"
+#include "embedded_assets.h"
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "msimg32.lib")
@@ -13,53 +13,33 @@
 
 using namespace Gdiplus;
 static ULONG_PTR g_gdiplus = 0;
-static Image* g_splash = nullptr;
-static IStream* g_gifStream = nullptr;
+static std::vector<Image*> g_frames;
+static std::vector<IStream*> g_frameStreams;
 static PrivateFontCollection g_fonts;
-static std::vector<BYTE> g_fontBytes;
 static FontFamily* g_fontFamilies = nullptr;
 static FontFamily* g_fontFamily = nullptr;
 static int g_frame = 0;
-static UINT g_frameCount = 1;
 static int g_progress = 0;
 static int g_phase = 0;
 static bool g_dragging = false;
 static POINT g_dragPoint{};
 
-static std::vector<BYTE> LoadResourceBytes(int id, const wchar_t* type) {
-    HRSRC resource = FindResourceW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(id), type);
-    if (!resource) return {};
-    HGLOBAL loaded = LoadResource(GetModuleHandleW(nullptr), resource);
-    DWORD size = SizeofResource(GetModuleHandleW(nullptr), resource);
-    const BYTE* data = static_cast<const BYTE*>(LockResource(loaded));
-    if (!data || size == 0) return {};
-    return std::vector<BYTE>(data, data + size);
-}
-
 static void InitializeAssets() {
-    auto gif = LoadResourceBytes(IDR_SPLASH_GIF, L"GIF");
-    if (!gif.empty()) {
-        HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, gif.size());
-        if (memory) {
-            void* target = GlobalLock(memory);
-            if (target) {
-                CopyMemory(target, gif.data(), gif.size());
-                GlobalUnlock(memory);
-                if (SUCCEEDED(CreateStreamOnHGlobal(memory, TRUE, &g_gifStream))) {
-                    g_splash = Image::FromStream(g_gifStream, FALSE);
-                    if (g_splash && g_splash->GetLastStatus() == Ok) {
-                        g_frameCount = g_splash->GetFrameCount(&FrameDimensionTime);
-                        if (!g_frameCount) g_frameCount = 1;
-                    } else {
-                        delete g_splash;
-                        g_splash = nullptr;
-                    }
-                } else GlobalFree(memory);
-            } else GlobalFree(memory);
-        }
+    for (const EmbeddedFrame& frame : kSplashFrames) {
+        HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, frame.size);
+        if (!memory) continue;
+        void* target = GlobalLock(memory);
+        if (!target) { GlobalFree(memory); continue; }
+        CopyMemory(target, frame.data, frame.size);
+        GlobalUnlock(memory);
+        IStream* stream = nullptr;
+        if (FAILED(CreateStreamOnHGlobal(memory, TRUE, &stream))) { GlobalFree(memory); continue; }
+        Image* image = Image::FromStream(stream, FALSE);
+        if (!image || image->GetLastStatus() != Ok) { delete image; stream->Release(); continue; }
+        g_frameStreams.push_back(stream);
+        g_frames.push_back(image);
     }
-    g_fontBytes = LoadResourceBytes(IDR_FORGE_FONT, L"FONT");
-    if (!g_fontBytes.empty() && g_fonts.AddMemoryFont(g_fontBytes.data(), static_cast<INT>(g_fontBytes.size())) == Ok) {
+    if (g_fonts.AddMemoryFont(kForgeFont, static_cast<INT>(sizeof(kForgeFont))) == Ok) {
         INT count = 0;
         g_fontFamilies = new FontFamily[1];
         g_fonts.GetFamilies(1, g_fontFamilies, &count);
@@ -119,15 +99,15 @@ static void Paint(HWND hwnd) {
     DrawText(graphics, L"Preparing Dragon protection modules", 259, 326, 11, Color(255, 139, 139, 146));
     DrawText(graphics, L"PLEASE WAIT", 259, 356, 9, Color(255, 231, 91, 51), FontStyleBold);
 
-    if (g_splash) {
-        if (g_frameCount > 1) g_splash->SelectActiveFrame(&FrameDimensionTime, g_frame);
-        const UINT sw = g_splash->GetWidth();
-        const UINT sh = g_splash->GetHeight();
+    if (!g_frames.empty()) {
+        Image* splash = g_frames[static_cast<size_t>(g_frame) % g_frames.size()];
+        const UINT sw = splash->GetWidth();
+        const UINT sh = splash->GetHeight();
         if (sw && sh) {
-            const float scale = std::min(190.0f / sw, 166.0f / sh);
-            const float dw = sw * scale;
-            const float dh = sh * scale;
-            graphics.DrawImage(g_splash, RectF(42.0f + (190.0f - dw) / 2.0f, 222.0f + (166.0f - dh) / 2.0f, dw, dh));
+            const float scale = std::min(190.0f / static_cast<float>(sw), 166.0f / static_cast<float>(sh));
+            const float dw = static_cast<float>(sw) * scale;
+            const float dh = static_cast<float>(sh) * scale;
+            graphics.DrawImage(splash, RectF(42.0f + (190.0f - dw) / 2.0f, 222.0f + (166.0f - dh) / 2.0f, dw, dh));
         }
     }
 
@@ -166,8 +146,10 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
     case WM_ERASEBKGND: return 1;
     case WM_TIMER:
         if (wParam == 1) {
-            if (g_frameCount > 1) {
-                g_frame = (g_frame + 1) % static_cast<int>(g_frameCount);
+            if (g_frames.size() > 1) {
+                g_frame = (g_frame + 1) % static_cast<int>(g_frames.size());
+                const UINT delay = kSplashFrames[g_frame].duration;
+                SetTimer(hwnd, 1, delay < 20 ? 20 : delay, nullptr);
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
         } else if (wParam == 2) {
@@ -254,15 +236,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!window) return 3;
     ShowWindow(window, SW_SHOW);
     UpdateWindow(window);
-    SetTimer(window, 1, 45, nullptr);
+    SetTimer(window, 1, g_frames.size() > 1 ? kSplashFrames[0].duration : 45, nullptr);
     SetTimer(window, 2, 65, nullptr);
     MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0) {
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
-    delete g_splash;
-    if (g_gifStream) g_gifStream->Release();
+    for (Image* frame : g_frames) delete frame;
+    for (IStream* stream : g_frameStreams) stream->Release();
     delete[] g_fontFamilies;
     GdiplusShutdown(g_gdiplus);
     return static_cast<int>(message.wParam);
