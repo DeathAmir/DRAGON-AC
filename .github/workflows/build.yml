@@ -34,3 +34,4 @@ jobs:
         with:
           files: DRAGON-AC-Windows-x64.zip
           generate_release_notes: true
+
