@@ -1,3 +1,0 @@
-#include "resource.h"
-IDR_SPLASH_GIF "GIF" "..\\Assets\\Splash.gif"
-IDR_FORGE_FONT "FONT" "..\\Assets\\FoRgE.ttf"
