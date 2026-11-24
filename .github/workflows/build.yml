@@ -10,14 +10,24 @@ jobs:
   build-windows-x64:
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout DRAGON-AC
         uses: actions/checkout@v4
+      - name: Checkout FoRgE font source
+        uses: actions/checkout@v4
+        with:
+          repository: DeathAmir/FoRgE
+          path: forge-source
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install asset converter
-        run: python -m pip install --disable-pip-version-check Pillow
+      - name: Install asset tools
+        run: python -m pip install --disable-pip-version-check Pillow fonttools brotli
+      - name: Generate official FoRgE typeface
+        run: |
+          python forge-source/tools/build_brand_assets.py
+          Copy-Item forge-source/WebSite/public/fonts/forge-400.ttf Assets/FoRgE.ttf
+        shell: pwsh
       - name: Configure
         run: cmake -S . -B build -A x64
       - name: Build Release
